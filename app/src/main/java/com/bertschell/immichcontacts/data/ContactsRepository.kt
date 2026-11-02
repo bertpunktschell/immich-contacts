@@ -16,6 +16,7 @@ data class ContactInfo(
     val photoUri: String? = null,
     val phoneNumbers: List<String> = emptyList(),
     val emails: List<String> = emptyList(),
+    val accountTypes: List<String> = emptyList(), // debug: which accounts hold this contact
 )
 
 class ContactsRepository(private val context: Context) {
@@ -46,6 +47,7 @@ class ContactsRepository(private val context: Context) {
                 val photoUri = cursor.getString(photoIdx)
                 val phones = getPhoneNumbers(id)
                 val emails = getEmails(id)
+                val accounts = getAccountTypes(id)
                 contacts.add(ContactInfo(
                     id = id,
                     displayName = name,
@@ -53,7 +55,9 @@ class ContactsRepository(private val context: Context) {
                     photoUri = photoUri,
                     phoneNumbers = phones,
                     emails = emails,
+                    accountTypes = accounts,
                 ))
+                android.util.Log.d("ContactsRepoDebug", "contact id=$id name=$name accounts=${accounts.joinToString()} phone=${phones.firstOrNull() ?: "-"} photo=${photoUri != null}")
             }
         }
         return contacts
@@ -157,6 +161,25 @@ class ContactsRepository(private val context: Context) {
             while (cursor.moveToNext()) ids.add(cursor.getLong(0))
         }
         return ids
+    }
+
+    /** Debug: which account types hold raw contacts for this aggregate */
+    private fun getAccountTypes(contactId: Long): List<String> {
+        val types = mutableListOf<String>()
+        try {
+            context.contentResolver.query(
+                ContactsContract.RawContacts.CONTENT_URI,
+                arrayOf(ContactsContract.RawContacts.ACCOUNT_TYPE_AND_DATA_SET, ContactsContract.RawContacts._ID),
+                "${ContactsContract.RawContacts.CONTACT_ID} = ? AND ${ContactsContract.RawContacts.DELETED} = 0",
+                arrayOf(contactId.toString()),
+                null
+            )?.use { cursor ->
+                while (cursor.moveToNext()) {
+                    types.add(cursor.getString(0) ?: "unknown")
+                }
+            }
+        } catch (e: Exception) { /* ignore */ }
+        return types
     }
 
     private fun getRawContactId(contactId: Long): Long? {
