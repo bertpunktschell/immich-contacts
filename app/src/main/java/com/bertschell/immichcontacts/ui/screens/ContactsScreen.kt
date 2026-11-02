@@ -63,6 +63,22 @@ fun ContactsScreen(
         }
     }
 
+    // Reload on every resume (e.g. return from crop) so new profile photos
+    // show up immediately. Re-load also rewrites the contacts list — avatars
+    // are keyed by contact.id + photoRev, which bumps on refresh.
+    val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
+    var photoRev by remember { mutableStateOf(0) }
+    androidx.compose.runtime.DisposableEffect(lifecycleOwner) {
+        val obs = androidx.lifecycle.LifecycleEventObserver { _, event ->
+            if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
+                if (hasContactPermission) viewModel.loadData(context)
+                photoRev++
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(obs)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(obs) }
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -227,7 +243,7 @@ private fun ContactRow(
 @Composable
 private fun ContactAvatar(contact: ContactInfo, sizeDp: Int = 40) {
     val contextForAvatars = androidx.compose.ui.platform.LocalContext.current
-    var bitmap by remember(contact.id) { mutableStateOf<android.graphics.Bitmap?>(null) }
+    var bitmap by remember(contact.id, contact.photoUri) { mutableStateOf<android.graphics.Bitmap?>(null) }
     LaunchedEffect(contact.id, contact.photoUri) {
         if (bitmap != null) return@LaunchedEffect
         val bmp = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
