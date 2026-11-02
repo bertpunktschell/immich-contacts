@@ -103,11 +103,7 @@ fun SetupScreen(
                 modifier = Modifier.fillMaxWidth(),
             ) {
                 if (state.isLoading) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(20.dp),
-                        strokeWidth = 2.dp,
-                        color = MaterialTheme.colorScheme.onPrimary,
-                    )
+                    com.bertschell.immichcontacts.ui.PulsingLoader()
                 } else {
                     Text("Verbinden")
                 }

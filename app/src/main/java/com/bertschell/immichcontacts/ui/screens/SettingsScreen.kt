@@ -45,7 +45,7 @@ fun SettingsScreen(
                 .padding(24.dp),
         ) {
             if (state.isLoading) {
-                CircularProgressIndicator()
+                com.bertschell.immichcontacts.ui.PulsingLoader()
                 return@Column
             }
 

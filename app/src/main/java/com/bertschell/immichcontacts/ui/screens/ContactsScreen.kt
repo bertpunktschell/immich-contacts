@@ -120,7 +120,7 @@ fun ContactsScreen(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center,
                 ) {
-                    CircularProgressIndicator()
+                    com.bertschell.immichcontacts.ui.PulsingLoader()
                 }
                 return@Column
             }

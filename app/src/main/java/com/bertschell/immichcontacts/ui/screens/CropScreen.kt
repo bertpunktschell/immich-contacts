@@ -72,12 +72,14 @@ fun CropScreen(
 
             val uCropIntent = UCrop.of(inputUri, outputUri)
                 .withAspectRatio(1f, 1f)  // Square for contact photos
-                .withMaxResultSize(512, 512)
+                .withMaxResultSize(720, 720)  // Android contact photo convention (~720x720)
                 .withOptions(UCrop.Options().apply {
                     setCompressionFormat(Bitmap.CompressFormat.JPEG)
                     setCompressionQuality(90)
                     setHideBottomControls(false)
-                    setFreeStyleCropEnabled(true)
+                    setFreeStyleCropEnabled(false)  // circle mask + free rectangle contradict
+                    setCircleDimmedLayer(true)  // show final circular look like contact photo UIs
+                    setDimmedLayerColor(android.graphics.Color.argb(140, 0, 0, 0))
                     setToolbarTitle("Zuschneiden für $contactName")
                 })
                 .getIntent(context)
@@ -112,7 +114,7 @@ fun CropScreen(
         ) {
             when {
                 state.isLoading -> {
-                    CircularProgressIndicator()
+                    com.bertschell.immichcontacts.ui.PulsingLoader()
                     Spacer(Modifier.height(16.dp))
                     Text("Lade Originalbild von Immich...")
                 }
@@ -125,7 +127,7 @@ fun CropScreen(
                     Button(onClick = onBack) { Text("Zurück") }
                 }
                 state.isApplying -> {
-                    CircularProgressIndicator()
+                    com.bertschell.immichcontacts.ui.PulsingLoader()
                     Spacer(Modifier.height(16.dp))
                     Text("Speichere Kontaktfoto...")
                 }
