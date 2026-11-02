@@ -57,7 +57,6 @@ class ContactsRepository(private val context: Context) {
                                 "com.linkedin.android", "com.viber.voip")
                 }
                 if (messagingOnly) {
-                    android.util.Log.d("ContactsRepoDebug", "skip messaging-only aggregate id=$id name=$name accounts=${accounts.joinToString()}")
                     continue
                 }
                 contacts.add(ContactInfo(

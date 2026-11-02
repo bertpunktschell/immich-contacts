@@ -46,7 +46,6 @@ class LibraryViewModel : ViewModel() {
                     page++
                     if (page > 100) break // safety
                 }
-                Log.d(TAG, "loadAllAssets: ${all.size} assets in $page page(s)")
                 state = state.copy(isLoading = false, allAssets = all, currentBucketAssets = all, buckets = emptyList())
                 api.close()
             } catch (e: Exception) {
@@ -76,8 +75,6 @@ class LibraryViewModel : ViewModel() {
                 // Also load first page of all images via search/metadata
                 val searchResp = api.getAllImages(page = 1, size = 100)
                 val assets = searchResp.assets.items
-                Log.d(TAG, "Loaded ${assets.size} assets, total=${searchResp.assets.total}")
-                Log.d(TAG, "Loaded ${buckets.size} buckets")
 
                 state = state.copy(
                     isLoading = false,
@@ -119,7 +116,6 @@ class LibraryViewModel : ViewModel() {
                 val assets = response.assets.items.filter { asset ->
                     asset.fileCreatedAt.startsWith("${year}-${month.toString().padStart(2, '0')}")
                 }
-                Log.d(TAG, "Bucket $bucket: ${assets.size} assets filtered from ${response.assets.items.size}")
 
                 state = state.copy(isLoading = false, currentBucketAssets = assets)
                 api.close()

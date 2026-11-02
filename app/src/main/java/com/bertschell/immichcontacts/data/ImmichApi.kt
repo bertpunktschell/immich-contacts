@@ -73,14 +73,12 @@ class ImmichApi(private val baseUrl: String, inApiKey: String) {
             put("size", size)
         }
         val response = client.post(apiPath("/search/metadata")) { setBody(body) }
-        Log.d(TAG, "getAssetsForPerson($personId) status=${response.status}")
         return parseSearchResponse(response)
     }
 
     /** Fetch as raw string, log it, then tolerate: typed parse -> manual fallback parse. */
     private suspend fun parseSearchResponse(response: HttpResponse): ImmichSearchResponse {
         val raw = response.bodyAsText()
-        Log.d(TAG, "searchResponse raw (first 600): ${raw.take(600)}")
         if (!response.status.isSuccess()) {
             throw IllegalStateException("HTTP ${response.status}: ${raw.take(300)}")
         }
@@ -108,7 +106,6 @@ class ImmichApi(private val baseUrl: String, inApiKey: String) {
                 localDateTime = (obj["localDateTime"] as? JsonPrimitive)?.content ?: "",
             )
         }
-        Log.d(TAG, "manualParse: ${assets.size} assets")
         ImmichSearchResponse(assets = ImmichSearchAssets(total = assets.size, items = assets))
     }.getOrElse {
         Log.e(TAG, "manualParse failed entirely", it)
@@ -134,7 +131,6 @@ class ImmichApi(private val baseUrl: String, inApiKey: String) {
             put("size", size)
         }
         val response = client.post(apiPath("/search/metadata")) { setBody(body) }
-        Log.d(TAG, "getAllImages page=$page status=${response.status}")
         return parseSearchResponse(response)
     }
 
@@ -142,13 +138,11 @@ class ImmichApi(private val baseUrl: String, inApiKey: String) {
         val response = client.get(apiPath("/timeline/buckets")) {
             url { parameters.append("size", size) }
         }
-        Log.d(TAG, "getTimelineBuckets status=${response.status}")
         return response.body()
     }
 
     suspend fun getAssetThumbnail(assetId: String): ByteArray {
         val response = client.get(apiPath("/assets/$assetId/thumbnail"))
-        Log.d(TAG, "thumbnail($assetId) status=${response.status} ct=${response.contentType()}")
         if (!response.status.isSuccess()) {
             val err = response.bodyAsText().take(300)
             Log.w(TAG, "thumbnail failed: $err")

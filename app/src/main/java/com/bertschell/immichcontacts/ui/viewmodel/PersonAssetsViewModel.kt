@@ -34,7 +34,6 @@ class PersonAssetsViewModel : ViewModel() {
                 val api = ImmichApi(url, k)
                 val response = api.getAssetsForPerson(personId, size = 100)
                 val assets = response.assets.items
-                Log.d(TAG, "Loaded ${assets.size} assets for person $personId (total=${response.assets.total})")
                 state = state.copy(isLoading = false, assets = assets)
                 api.close()
             } catch (e: Exception) {

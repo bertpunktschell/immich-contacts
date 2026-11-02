@@ -13,8 +13,8 @@ android {
         applicationId = "com.bertschell.immichcontacts"
         minSdk = 26
         targetSdk = 35
-        versionCode = 32
-        versionName = "1.4.2"
+        versionCode = 33
+        versionName = "1.5.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -22,9 +22,19 @@ android {
         }
     }
 
+    signingConfigs {
+        create("release") {
+            storeFile = file("../keystore/immich-contacts-release.jks")
+            storePassword = "immichcontacts2026"
+            keyAlias = "immich-contacts"
+            keyPassword = "immichcontacts2026"
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = false
+            signingConfig = signingConfigs.getByName("release")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
