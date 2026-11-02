@@ -82,6 +82,9 @@ fun CropScreen(
                 })
                 .getIntent(context)
 
+            uCropIntent.setComponent(
+                android.content.ComponentName(context, com.bertschell.immichcontacts.ui.GestureSafeUCropActivity::class.java)
+            )
             cropResultLauncher.launch(uCropIntent)
             viewModel.cropLaunched()
         }
