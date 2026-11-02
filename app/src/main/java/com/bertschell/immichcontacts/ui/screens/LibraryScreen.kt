@@ -4,6 +4,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -15,6 +16,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
@@ -43,20 +45,17 @@ fun LibraryScreen(
         val settings = SettingsRepository(context)
         serverUrl = settings.serverUrl.first()
         apiKey = settings.apiKey.first()
-        viewModel.loadBuckets(context)
+        viewModel.loadAllAssets(context)
     }
 
     Scaffold(
         topBar = {
             TopAppBar(
                 title = {
-                    Text(if (state.selectedBucket != null) "Bilder ${state.selectedBucket}" else "Bibliothek")
+                    Text("Bibliothek")
                 },
                 navigationIcon = {
-                    IconButton(onClick = {
-                        if (state.selectedBucket != null) viewModel.backToBuckets()
-                        else onBack()
-                    }) {
+                    IconButton(onClick = { onBack() }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Zurück")
                     }
                 }
@@ -98,23 +97,25 @@ fun LibraryScreen(
                 return@Column
             }
 
-            // Show month buckets as chips at top
-            if (state.buckets.isNotEmpty() && state.selectedBucket == null) {
-                LazyRow(
-                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    items(state.buckets) { bucket ->
-                        FilterChip(
-                            selected = false,
-                            onClick = { viewModel.loadBucketAssets(context, bucket.timeBucket) },
-                            label = { Text("${bucket.timeBucket.take(7)} (${bucket.count})") },
-                        )
+            // Immich-style timeline: continuous grid with month headers
+            // Assets arrive date-desc from search/metadata; group by month.
+            val timelineItems = remember(state.currentBucketAssets) {
+                val fmt = java.time.format.DateTimeFormatter.ofPattern("MMMM yyyy", java.util.Locale.GERMANY)
+                buildList {
+                    var lastMonth = ""
+                    for (asset in state.currentBucketAssets) {
+                        val date = try {
+                            java.time.LocalDateTime.parse(asset.localDateTime.ifBlank { asset.fileCreatedAt }.take(19))
+                        } catch (e: Exception) { null }
+                        val month = date?.let { it.format(fmt) } ?: "Unbekannt"
+                        if (month != lastMonth) {
+                            add(TimelineEntry.Header(month, date))
+                            lastMonth = month
+                        }
+                        add(TimelineEntry.AssetEntry(asset))
                     }
                 }
             }
-
-            // Show assets in grid — tappable
             LazyVerticalGrid(
                 columns = GridCells.Adaptive(minSize = 120.dp),
                 contentPadding = PaddingValues(4.dp),
@@ -122,23 +123,51 @@ fun LibraryScreen(
                 verticalArrangement = Arrangement.spacedBy(4.dp),
                 modifier = Modifier.weight(1f),
             ) {
-                items(state.currentBucketAssets, key = { it.id }) { asset ->
-                    Box(
-                        modifier = Modifier
-                            .aspectRatio(1f)
-                            .fillMaxWidth()
-                            .clickable { if (asset.id.isNotBlank()) onAssetSelected(asset.id) },
-                    ) {
-                        com.bertschell.immichcontacts.ui.ThumbnailBox(
-                            serverUrl = serverUrl,
-                            apiKey = apiKey,
-                            assetId = asset.id,
-                            contentDescription = asset.originalFileName,
-                            modifier = Modifier.fillMaxSize(),
-                        )
+                items(timelineItems, key = { entry ->
+                    when (entry) {
+                        is TimelineEntry.Header -> "h-" + entry.label + "-" + entry.date
+                        is TimelineEntry.AssetEntry -> entry.asset.id
+                    }
+                }, span = { entry ->
+                    if (entry is TimelineEntry.Header) GridItemSpan(maxLineSpan) else GridItemSpan(1)
+                }) { entry ->
+                    when (entry) {
+                        is TimelineEntry.Header -> {
+                            // Sticky-style month header
+                            Text(
+                                text = if (entry.date != null && entry.date.year == java.time.LocalDate.now().year) {
+                                    entry.label.substringBefore(" ") + " " + entry.date.year
+                                } else entry.label,
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.SemiBold,
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                            )
+                        }
+                        is TimelineEntry.AssetEntry -> {
+                            val asset = entry.asset
+                            Box(
+                                modifier = Modifier
+                                    .aspectRatio(1f)
+                                    .fillMaxWidth()
+                                    .clickable { if (asset.id.isNotBlank()) onAssetSelected(asset.id) },
+                            ) {
+                                com.bertschell.immichcontacts.ui.ThumbnailBox(
+                                    serverUrl = serverUrl,
+                                    apiKey = apiKey,
+                                    assetId = asset.id,
+                                    contentDescription = asset.originalFileName,
+                                    modifier = Modifier.fillMaxSize(),
+                                )
+                            }
+                        }
                     }
                 }
             }
         }
     }
+}
+
+private sealed interface TimelineEntry {
+    data class Header(val label: String, val date: java.time.LocalDateTime?) : TimelineEntry
+    data class AssetEntry(val asset: com.bertschell.immichcontacts.data.model.ImmichAsset) : TimelineEntry
 }

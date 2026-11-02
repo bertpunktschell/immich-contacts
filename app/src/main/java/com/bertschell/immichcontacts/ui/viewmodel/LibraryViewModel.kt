@@ -28,6 +28,34 @@ class LibraryViewModel : ViewModel() {
         private set
     private val TAG = "LibraryViewModel"
 
+    /** Load ALL images across pages (search/metadata default-sorts by date desc) */
+    fun loadAllAssets(context: Context) {
+        state = state.copy(isLoading = true, error = null)
+        viewModelScope.launch {
+            try {
+                val settings = SettingsRepository(context)
+                val url = settings.serverUrl.first()
+                val k = settings.apiKey.first()
+                val api = ImmichApi(url, k)
+                val all = mutableListOf<ImmichAsset>()
+                var page = 1
+                while (true) {
+                    val resp = api.getAllImages(page = page, size = 500)
+                    all.addAll(resp.assets.items)
+                    if (resp.assets.items.size < 500 || resp.assets.total <= all.size) break
+                    page++
+                    if (page > 100) break // safety
+                }
+                Log.d(TAG, "loadAllAssets: ${all.size} assets in $page page(s)")
+                state = state.copy(isLoading = false, allAssets = all, currentBucketAssets = all, buckets = emptyList())
+                api.close()
+            } catch (e: Exception) {
+                Log.e(TAG, "loadAllAssets error", e)
+                state = state.copy(isLoading = false, error = "Fehler: ${e.message ?: e::class.simpleName}")
+            }
+        }
+    }
+
     fun loadBuckets(context: Context) {
         state = state.copy(isLoading = true, error = null)
         viewModelScope.launch {
