@@ -110,28 +110,22 @@ class ContactsRepository(private val context: Context) {
 
     fun setContactPhotoBytes(contactId: Long, photoBytes: ByteArray): Boolean {
         return try {
-            // Find the raw contact ID for this contact
-            val rawContactId = getRawContactId(contactId) ?: run {
-                Log.e("ContactsRepository", "No raw contact found for contact $contactId")
-                return false
-            }
-
-            // Delete existing photo if any
-            context.contentResolver.delete(
-                ContactsContract.Data.CONTENT_URI,
-                "${ContactsContract.Data.RAW_CONTACT_ID} = ? AND ${ContactsContract.Data.MIMETYPE} = ?",
-                arrayOf(rawContactId.toString(), ContactsContract.CommonDataKinds.Photo.CONTENT_ITEM_TYPE)
+            // Write the DISPLAY photo of the aggregated contact. This is what
+            // Contacts/Outlook/ dialer apps actually show. Writing a Photo.PHOTO
+            // blob to a single raw contact only shows up in some apps.
+            val contactUri = android.content.ContentUris.withAppendedId(
+                ContactsContract.Contacts.CONTENT_URI, contactId
             )
-
-            // Insert new photo
-            val op = ContentProviderOperation.newInsert(ContactsContract.Data.CONTENT_URI)
-                .withValue(ContactsContract.Data.RAW_CONTACT_ID, rawContactId)
-                .withValue(ContactsContract.Data.MIMETYPE, ContactsContract.CommonDataKinds.Photo.CONTENT_ITEM_TYPE)
-                .withValue(ContactsContract.CommonDataKinds.Photo.PHOTO, photoBytes)
-                .build()
-
-            val results = context.contentResolver.applyBatch(ContactsContract.AUTHORITY, arrayListOf(op))
-            results.isNotEmpty()
+            val ok = context.contentResolver.openOutputStream(contactUri)?.use { out ->
+                out.write(photoBytes)
+                true
+            } ?: false
+            if (ok) {
+                Log.d("ContactsRepository", "Display photo set for contact $contactId (${photoBytes.size} bytes)")
+            } else {
+                Log.e("ContactsRepository", "openOutputStream returned null for $contactId")
+            }
+            ok
         } catch (e: Exception) {
             Log.e("ContactsRepository", "Failed to set contact photo", e)
             false
