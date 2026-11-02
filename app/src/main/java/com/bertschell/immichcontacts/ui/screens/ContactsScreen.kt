@@ -6,6 +6,9 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
@@ -212,13 +215,53 @@ private fun ContactRow(
                 )
             }
         },
-        leadingContent = {
-            Icon(Icons.Default.AccountCircle, contentDescription = null, modifier = Modifier.size(40.dp))
-        },
+        leadingContent = { ContactAvatar(contact = contact) },
         trailingContent = if (matchedPersonName != null) {
             { Icon(Icons.Default.PhotoLibrary, contentDescription = null, tint = MaterialTheme.colorScheme.primary) }
         } else null,
         modifier = Modifier.clickable(onClick = onClick),
     )
     HorizontalDivider()
+}
+
+@Composable
+private fun ContactAvatar(contact: ContactInfo, sizeDp: Int = 40) {
+    val contextForAvatars = androidx.compose.ui.platform.LocalContext.current
+    var bitmap by remember(contact.id) { mutableStateOf<android.graphics.Bitmap?>(null) }
+    LaunchedEffect(contact.id, contact.photoUri) {
+        if (bitmap != null) return@LaunchedEffect
+        val bmp = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            try {
+                if (contact.photoUri != null) {
+                    android.provider.ContactsContract.Contacts.openContactPhotoInputStream(
+                        contextForAvatars.contentResolver, android.net.Uri.parse(contact.photoUri), true
+                    )?.use { android.graphics.BitmapFactory.decodeStream(it) }
+                } else null
+            } catch (e: Exception) { null }
+        }
+        bitmap = bmp
+    }
+    if (bitmap != null) {
+        Image(
+            bitmap = bitmap!!.asImageBitmap(),
+            contentDescription = null,
+            modifier = Modifier
+                .size(sizeDp.dp)
+                .clip(androidx.compose.foundation.shape.CircleShape),
+        )
+    } else {
+        Box(
+            modifier = Modifier
+                .size(sizeDp.dp)
+                .clip(androidx.compose.foundation.shape.CircleShape)
+                .background(MaterialTheme.colorScheme.primaryContainer),
+            contentAlignment = androidx.compose.ui.Alignment.Center,
+        ) {
+            Text(
+                contact.displayName.trim().take(1).uppercase().ifBlank { "?" },
+                color = MaterialTheme.colorScheme.onPrimaryContainer,
+                style = MaterialTheme.typography.titleMedium,
+            )
+        }
+    }
 }

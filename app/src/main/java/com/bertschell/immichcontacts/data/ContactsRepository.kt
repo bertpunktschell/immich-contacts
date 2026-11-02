@@ -13,6 +13,7 @@ data class ContactInfo(
     val id: Long,
     val displayName: String,
     val hasPhoto: Boolean,
+    val photoUri: String? = null,
     val phoneNumbers: List<String> = emptyList(),
     val emails: List<String> = emptyList(),
 )
@@ -49,6 +50,7 @@ class ContactsRepository(private val context: Context) {
                     id = id,
                     displayName = name,
                     hasPhoto = photoUri != null,
+                    photoUri = photoUri,
                     phoneNumbers = phones,
                     emails = emails,
                 ))
