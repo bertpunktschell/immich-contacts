@@ -24,7 +24,7 @@ data class ContactsState(
     val contactToPersonMap: Map<Long, String> = emptyMap(),
     val error: String? = null,
     val searchQuery: String = "",
-    val showOnlyWithImmich: Boolean = false,
+    val showOnlyWithImmich: Boolean = true,
 )
 
 class ContactsViewModel : ViewModel() {

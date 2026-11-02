@@ -30,7 +30,7 @@ fun PulsingLoader(size: Dp = 48.dp) {
     var frame by remember { mutableIntStateOf(0) }
     LaunchedEffect(Unit) {
         while (true) {
-            delay(90)
+            delay(60)
             frame = (frame + 1) % FRAMES.size
         }
     }
