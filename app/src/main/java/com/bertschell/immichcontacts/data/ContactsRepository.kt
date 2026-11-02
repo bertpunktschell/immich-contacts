@@ -48,6 +48,18 @@ class ContactsRepository(private val context: Context) {
                 val phones = getPhoneNumbers(id)
                 val emails = getEmails(id)
                 val accounts = getAccountTypes(id)
+                // Skip aggregates that ONLY come from messaging apps (WhatsApp/Signal/Telegram).
+                // These are duplicate copies Android didn't merge with the "real" contact;
+                // Google Contacts hides them too, and their raw contacts are read-only.
+                val messagingOnly = accounts.isNotEmpty() && accounts.all {
+                    it in setOf("com.whatsapp", "org.thoughtcrime.securesms",
+                                "org.telegram.messenger", "jp.naver.line.android",
+                                "com.linkedin.android", "com.viber.voip")
+                }
+                if (messagingOnly) {
+                    android.util.Log.d("ContactsRepoDebug", "skip messaging-only aggregate id=$id name=$name accounts=${accounts.joinToString()}")
+                    continue
+                }
                 contacts.add(ContactInfo(
                     id = id,
                     displayName = name,
