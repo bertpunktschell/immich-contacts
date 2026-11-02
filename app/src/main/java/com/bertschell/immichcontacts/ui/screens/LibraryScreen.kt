@@ -87,10 +87,20 @@ fun LibraryScreen(
                 return@Column
             }
 
-            if (state.selectedBucket == null) {
-                // Show month buckets as chips
+            if (state.currentBucketAssets.isEmpty()) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text("Keine Bilder gefunden.")
+                }
+                return@Column
+            }
+
+            // Show month buckets as chips at top
+            if (state.buckets.isNotEmpty() && state.selectedBucket == null) {
                 LazyRow(
-                    contentPadding = PaddingValues(16.dp),
+                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     items(state.buckets) { bucket ->
@@ -101,31 +111,26 @@ fun LibraryScreen(
                         )
                     }
                 }
-                Text(
-                    "Tippe auf einen Monat um die Bilder zu sehen",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(horizontal = 16.dp),
-                )
-            } else {
-                // Show assets in grid — tappable
-                LazyVerticalGrid(
-                    columns = GridCells.Adaptive(minSize = 120.dp),
-                    contentPadding = PaddingValues(4.dp),
-                    horizontalArrangement = Arrangement.spacedBy(4.dp),
-                    verticalArrangement = Arrangement.spacedBy(4.dp),
-                ) {
-                    items(state.currentBucketAssets, key = { it.id }) { asset ->
-                        AsyncImage(
-                            model = ImmichImageLoader.thumbnailRequest(context, serverUrl, apiKey, asset.id),
-                            contentDescription = asset.originalFileName,
-                            contentScale = ContentScale.Crop,
-                            modifier = Modifier
-                                .aspectRatio(1f)
-                                .fillMaxWidth()
-                                .clickable { onAssetSelected(asset.id) },
-                        )
-                    }
+            }
+
+            // Show assets in grid — tappable
+            LazyVerticalGrid(
+                columns = GridCells.Adaptive(minSize = 120.dp),
+                contentPadding = PaddingValues(4.dp),
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+                modifier = Modifier.weight(1f),
+            ) {
+                items(state.currentBucketAssets, key = { it.id }) { asset ->
+                    AsyncImage(
+                        model = ImmichImageLoader.thumbnailRequest(context, serverUrl, apiKey, asset.id),
+                        contentDescription = asset.originalFileName,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier
+                            .aspectRatio(1f)
+                            .fillMaxWidth()
+                            .clickable { onAssetSelected(asset.id) },
+                    )
                 }
             }
         }

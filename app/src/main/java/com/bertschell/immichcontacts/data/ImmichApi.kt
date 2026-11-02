@@ -1,5 +1,6 @@
 package com.bertschell.immichcontacts.data
 
+import android.util.Log
 import io.ktor.client.*
 import io.ktor.client.call.*
 import io.ktor.client.engine.okhttp.*
@@ -10,19 +11,25 @@ import io.ktor.client.statement.*
 import io.ktor.http.*
 import io.ktor.serialization.kotlinx.json.*
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import com.bertschell.immichcontacts.data.model.*
 
-class ImmichApi(private val baseUrl: String, private val apiKey: String) {
+class ImmichApi(private val baseUrl: String, inApiKey: String) {
+
+    private val apiKey = inApiKey
+    private val TAG = "ImmichApi"
 
     private val client = HttpClient(OkHttp) {
         install(ContentNegotiation) {
             json(Json {
                 ignoreUnknownKeys = true
                 encodeDefaults = true
+                isLenient = true
+                coerceInputValues = true
             })
         }
         install(DefaultRequest) {
@@ -52,15 +59,17 @@ class ImmichApi(private val baseUrl: String, private val apiKey: String) {
         return client.get(apiPath("/people/$personId")).body()
     }
 
-    suspend fun getAssetsForPerson(personId: String, page: Int = 1, size: Int = 50): ImmichSearchResponse {
-        return client.post(apiPath("/search/metadata")) {
+    suspend fun getAssetsForPerson(personId: String, page: Int = 1, size: Int = 100): ImmichSearchResponse {
+        val response = client.post(apiPath("/search/metadata")) {
             setBody(buildJsonObject {
-                put("personId", personId)
+                put("personIds", JsonArray(listOf(JsonPrimitive(personId))))
                 put("type", "IMAGE")
                 put("page", page)
                 put("size", size)
             })
-        }.body()
+        }
+        Log.d(TAG, "getAssetsForPerson($personId) status=${response.status}")
+        return response.body()
     }
 
     suspend fun searchAssets(query: String, page: Int = 1, size: Int = 50): ImmichSearchResponse {
@@ -74,19 +83,25 @@ class ImmichApi(private val baseUrl: String, private val apiKey: String) {
         }.body()
     }
 
-    suspend fun getTimelineBuckets(size: String = "MONTH"): List<ImmichTimelineBucket> {
-        return client.get(apiPath("/timeline/buckets")) {
-            url { parameters.append("size", size) }
-        }.body()
+    /** Get all images via search/metadata — reliable asset-object format */
+    suspend fun getAllImages(page: Int = 1, size: Int = 100): ImmichSearchResponse {
+        val response = client.post(apiPath("/search/metadata")) {
+            setBody(buildJsonObject {
+                put("type", "IMAGE")
+                put("page", page)
+                put("size", size)
+            })
+        }
+        Log.d(TAG, "getAllImages page=$page status=${response.status}")
+        return response.body()
     }
 
-    suspend fun getTimelineBucket(bucket: String, size: String = "MONTH"): List<ImmichAsset> {
-        return client.get(apiPath("/timeline/bucket")) {
-            url {
-                parameters.append("size", size)
-                parameters.append("timeBucket", bucket)
-            }
-        }.body()
+    suspend fun getTimelineBuckets(size: String = "MONTH"): List<ImmichTimelineBucket> {
+        val response = client.get(apiPath("/timeline/buckets")) {
+            url { parameters.append("size", size) }
+        }
+        Log.d(TAG, "getTimelineBuckets status=${response.status}")
+        return response.body()
     }
 
     suspend fun getAssetThumbnail(assetId: String): ByteArray {

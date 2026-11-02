@@ -1,12 +1,19 @@
 package com.bertschell.immichcontacts.ui.navigation
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.bertschell.immichcontacts.data.SettingsRepository
 import com.bertschell.immichcontacts.ui.screens.*
+import kotlinx.coroutines.flow.first
 
 object Routes {
     const val SETUP = "setup"
@@ -27,8 +34,24 @@ object Routes {
 @Composable
 fun ImmichContactsApp() {
     val navController = rememberNavController()
+    var startDestination by remember { mutableStateOf<String?>(null) }
+    var checked by remember { mutableStateOf(false) }
 
-    NavHost(navController = navController, startDestination = Routes.SETUP) {
+    LaunchedEffect(Unit) {
+        val context = navController.context
+        val repo = SettingsRepository(context)
+        val url = repo.serverUrl.first()
+        val key = repo.apiKey.first()
+        startDestination = if (url.isNotBlank() && key.isNotBlank()) Routes.CONTACTS else Routes.SETUP
+        checked = true
+    }
+
+    if (!checked || startDestination == null) {
+        // Show nothing while checking — could add a splash/loading screen
+        return
+    }
+
+    NavHost(navController = navController, startDestination = startDestination!!) {
         composable(Routes.SETUP) {
             SetupScreen(
                 onConnected = {

@@ -40,7 +40,7 @@ class SetupViewModel : ViewModel() {
             try {
                 val url = state.url.trim().trimEnd('/')
                 val key = state.apiKey.trim()
-                if (url.isBlank() || state.apiKey.isBlank()) {
+                if (url.isBlank() || key.isBlank()) {
                     state = state.copy(isLoading = false, error = "URL und API Key duerfen nicht leer sein")
                     return@launch
                 }

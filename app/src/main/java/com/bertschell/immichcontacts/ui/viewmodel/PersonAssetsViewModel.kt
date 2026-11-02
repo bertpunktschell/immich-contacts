@@ -1,6 +1,7 @@
 package com.bertschell.immichcontacts.ui.viewmodel
 
 import android.content.Context
+import android.util.Log
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -21,6 +22,7 @@ data class PersonAssetsState(
 class PersonAssetsViewModel : ViewModel() {
     var state by mutableStateOf(PersonAssetsState())
         private set
+    private val TAG = "PersonAssetsVM"
 
     fun loadAssets(context: Context, personId: String) {
         state = state.copy(isLoading = true, error = null)
@@ -31,10 +33,13 @@ class PersonAssetsViewModel : ViewModel() {
                 val k = settings.apiKey.first()
                 val api = ImmichApi(url, k)
                 val response = api.getAssetsForPerson(personId, size = 100)
-                state = state.copy(isLoading = false, assets = response.assets.items)
+                val assets = response.assets.items
+                Log.d(TAG, "Loaded ${assets.size} assets for person $personId (total=${response.assets.total})")
+                state = state.copy(isLoading = false, assets = assets)
                 api.close()
             } catch (e: Exception) {
-                state = state.copy(isLoading = false, error = e.message ?: "Fehler")
+                Log.e(TAG, "loadAssets error for person $personId", e)
+                state = state.copy(isLoading = false, error = "Fehler: ${e.message ?: e::class.simpleName}")
             }
         }
     }
