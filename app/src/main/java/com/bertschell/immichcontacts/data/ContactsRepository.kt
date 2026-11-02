@@ -110,32 +110,53 @@ class ContactsRepository(private val context: Context) {
 
     fun setContactPhotoBytes(contactId: Long, photoBytes: ByteArray): Boolean {
         return try {
-            // Find the raw contact ID for this contact
-            val rawContactId = getRawContactId(contactId) ?: run {
+            // Write to ALL raw contacts of this aggregate (local account,
+            // Outlook/Exchange, etc.) so every app shows the new photo.
+            val rawContactIds = getAllRawContactIds(contactId)
+            if (rawContactIds.isEmpty()) {
                 Log.e("ContactsRepository", "No raw contact found for contact $contactId")
                 return false
             }
-
-            // Delete existing photo if any
-            context.contentResolver.delete(
-                ContactsContract.Data.CONTENT_URI,
-                "${ContactsContract.Data.RAW_CONTACT_ID} = ? AND ${ContactsContract.Data.MIMETYPE} = ?",
-                arrayOf(rawContactId.toString(), ContactsContract.CommonDataKinds.Photo.CONTENT_ITEM_TYPE)
-            )
-
-            // Insert new photo
-            val op = ContentProviderOperation.newInsert(ContactsContract.Data.CONTENT_URI)
-                .withValue(ContactsContract.Data.RAW_CONTACT_ID, rawContactId)
-                .withValue(ContactsContract.Data.MIMETYPE, ContactsContract.CommonDataKinds.Photo.CONTENT_ITEM_TYPE)
-                .withValue(ContactsContract.CommonDataKinds.Photo.PHOTO, photoBytes)
-                .build()
-
-            val results = context.contentResolver.applyBatch(ContactsContract.AUTHORITY, arrayListOf(op))
-            results.isNotEmpty()
+            var anySuccess = false
+            for (rawContactId in rawContactIds) {
+                try {
+                    context.contentResolver.delete(
+                        ContactsContract.Data.CONTENT_URI,
+                        "${ContactsContract.Data.RAW_CONTACT_ID} = ? AND ${ContactsContract.Data.MIMETYPE} = ?",
+                        arrayOf(rawContactId.toString(), ContactsContract.CommonDataKinds.Photo.CONTENT_ITEM_TYPE)
+                    )
+                    val op = ContentProviderOperation.newInsert(ContactsContract.Data.CONTENT_URI)
+                        .withValue(ContactsContract.Data.RAW_CONTACT_ID, rawContactId)
+                        .withValue(ContactsContract.Data.MIMETYPE, ContactsContract.CommonDataKinds.Photo.CONTENT_ITEM_TYPE)
+                        .withValue(ContactsContract.CommonDataKinds.Photo.PHOTO, photoBytes)
+                        .build()
+                    val results = context.contentResolver.applyBatch(ContactsContract.AUTHORITY, arrayListOf(op))
+                    if (results.isNotEmpty()) anySuccess = true
+                    else Log.w("ContactsRepository", "Photo write rejected for raw contact $rawContactId (account may be read-only)")
+                } catch (e: Exception) {
+                    Log.w("ContactsRepository", "Photo write failed for raw contact $rawContactId", e)
+                }
+            }
+            anySuccess
         } catch (e: Exception) {
             Log.e("ContactsRepository", "Failed to set contact photo", e)
             false
         }
+    }
+
+    /** ALL raw contact ids of an aggregate contact (local + outlook + whatsapp etc.) */
+    private fun getAllRawContactIds(contactId: Long): List<Long> {
+        val ids = mutableListOf<Long>()
+        context.contentResolver.query(
+            ContactsContract.RawContacts.CONTENT_URI,
+            arrayOf(ContactsContract.RawContacts._ID),
+            "${ContactsContract.RawContacts.CONTACT_ID} = ? AND ${ContactsContract.RawContacts.DELETED} = 0",
+            arrayOf(contactId.toString()),
+            null
+        )?.use { cursor ->
+            while (cursor.moveToNext()) ids.add(cursor.getLong(0))
+        }
+        return ids
     }
 
     private fun getRawContactId(contactId: Long): Long? {
