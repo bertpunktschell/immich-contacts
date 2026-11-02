@@ -71,8 +71,11 @@ fun ContactsScreen(
     androidx.compose.runtime.DisposableEffect(lifecycleOwner) {
         val obs = androidx.lifecycle.LifecycleEventObserver { _, event ->
             if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
-                if (hasContactPermission) viewModel.loadData(context)
-                photoRev++
+                if (hasContactPermission && com.bertschell.immichcontacts.data.PhotoDirtyFlag.isDirty) {
+                    com.bertschell.immichcontacts.data.PhotoDirtyFlag.isDirty = false
+                    viewModel.loadData(context)
+                    photoRev++
+                }
             }
         }
         lifecycleOwner.lifecycle.addObserver(obs)

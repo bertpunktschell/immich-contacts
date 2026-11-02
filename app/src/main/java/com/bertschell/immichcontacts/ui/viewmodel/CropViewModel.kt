@@ -81,6 +81,7 @@ class CropViewModel : ViewModel() {
                 }
 
                 if (success) {
+                    com.bertschell.immichcontacts.data.PhotoDirtyFlag.isDirty = true
                     state = state.copy(isApplying = false, isSuccess = true)
                     onDone()
                 } else {
