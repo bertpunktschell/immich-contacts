@@ -182,10 +182,6 @@ fun ContactsScreen(
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
             )
 
-            val dupNames = remember(contacts) {
-                contacts.groupingBy { it.displayName.trim().lowercase() }.eachCount()
-                    .filterValues { it > 1 }.keys
-            }
             LazyColumn(
                 contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
                 verticalArrangement = Arrangement.spacedBy(4.dp),
@@ -194,7 +190,6 @@ fun ContactsScreen(
                     val person = viewModel.getPersonForContact(contact.id)
                     ContactRow(
                         contact = contact,
-                        isDuplicate = contact.displayName.trim().lowercase() in dupNames,
                         matchedPersonName = person?.name,
                         onClick = {
                             if (person != null) {
@@ -214,29 +209,10 @@ fun ContactsScreen(
 private fun ContactRow(
     contact: ContactInfo,
     matchedPersonName: String?,
-    isDuplicate: Boolean = false,
     onClick: () -> Unit,
 ) {
     ListItem(
-        headlineContent = {
-            Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
-                Text(contact.displayName, fontWeight = FontWeight.Medium)
-                if (isDuplicate) {
-                    Text(
-                        "  ⚠ Duplikat",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.error,
-                    )
-                }
-                if (contact.accountTypes.isNotEmpty()) {
-                    Text(
-                        "  [" + contact.accountTypes.joinToString() + "]",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-            }
-        },
+        headlineContent = { Text(contact.displayName, fontWeight = FontWeight.Medium) },
         supportingContent = {
             if (matchedPersonName != null) {
                 Text(

@@ -69,7 +69,6 @@ class ContactsRepository(private val context: Context) {
                     emails = emails,
                     accountTypes = accounts,
                 ))
-                android.util.Log.d("ContactsRepoDebug", "contact id=$id name=$name accounts=${accounts.joinToString()} phone=${phones.firstOrNull() ?: "-"} photo=${photoUri != null}")
             }
         }
         return contacts
