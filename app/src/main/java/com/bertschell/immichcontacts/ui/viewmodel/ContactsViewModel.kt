@@ -23,6 +23,7 @@ data class ContactsState(
     val matchedPersonIds: Map<String, List<ContactInfo>> = emptyMap(),
     val contactToPersonMap: Map<Long, String> = emptyMap(),
     val ambiguous: Map<Long, List<ImmichPerson>> = emptyMap(), // contact -> candidates needing user decision
+    val photoTimestamps: Map<Long, Long> = emptyMap(), // contact -> epoch millis when OUR app set the photo
     val error: String? = null,
     val searchQuery: String = "",
     val showOnlyWithImmich: Boolean = true,
@@ -46,6 +47,8 @@ class ContactsViewModel : ViewModel() {
                 // so the loading spinner ticks fluently.
                 val overrideRepo = com.bertschell.immichcontacts.data.PersonOverrideRepository(context)
                 val overrides = overrideRepo.overrides.first()
+                val photoTs = com.bertschell.immichcontacts.data.PhotoTimestampRepository(context)
+                    .timestamps.first()
 
                 val (contacts, people, matchResult) = withContext(Dispatchers.IO) {
                     val c = contactsRepo.getAllContacts()
@@ -79,6 +82,7 @@ class ContactsViewModel : ViewModel() {
                     matchedPersonIds = autoMatches,
                     contactToPersonMap = contactToPerson,
                     ambiguous = amb,
+                    photoTimestamps = photoTs,
                 )
                 api.close()
             } catch (e: Exception) {
@@ -103,8 +107,15 @@ class ContactsViewModel : ViewModel() {
                 val refreshed = withContext(Dispatchers.IO) {
                     ContactsRepository(context).getContact(contactId)
                 } ?: return@launch
+                val ts = withContext(Dispatchers.IO) {
+                    com.bertschell.immichcontacts.data.PhotoTimestampRepository(context)
+                        .timestamps.first()[contactId]
+                }
                 val newList = state.contacts.map { if (it.id == contactId) refreshed else it }
-                state = state.copy(contacts = newList)
+                state = state.copy(
+                    contacts = newList,
+                    photoTimestamps = if (ts != null) state.photoTimestamps + (contactId to ts) else state.photoTimestamps,
+                )
             } catch (e: Exception) {
                 // Fallback: full reload on failure
                 loadData(context)

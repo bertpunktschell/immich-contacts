@@ -233,6 +233,7 @@ fun ContactsScreen(
                     ContactRow(
                         contact = contact,
                         matchedPersonName = person?.name,
+                        photoTimestamp = state.photoTimestamps[contact.id],
                         onClick = {
                             val ambiguousCandidates = state.ambiguous[contact.id]
                             if (ambiguousCandidates != null) {
@@ -260,6 +261,7 @@ fun ContactsScreen(
 private fun ContactRow(
     contact: ContactInfo,
     matchedPersonName: String?,
+    photoTimestamp: Long? = null,
     onClick: () -> Unit,
     onLongClick: () -> Unit = {},
 ) {
@@ -269,24 +271,40 @@ private fun ContactRow(
     ListItem(
         headlineContent = { Text(contact.displayName, fontWeight = FontWeight.Medium) },
         supportingContent = {
-            if (matchedPersonName != null) {
-                Text(
-                    "Immich: $matchedPersonName · Tippe für Bilder",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.primary,
-                )
-            } else if (contact.hasPhoto) {
-                Text(
-                    "Profilfoto vorhanden · Tippe für Bibliothek",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            } else {
-                Text(
-                    "Kein Foto · Tippe für Bibliothek",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+            Column {
+                if (matchedPersonName != null) {
+                    Text(
+                        "Immich: $matchedPersonName · Tippe für Bilder",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                } else if (contact.hasPhoto) {
+                    Text(
+                        "Profilfoto vorhanden · Tippe für Bibliothek",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                } else {
+                    Text(
+                        "Kein Foto · Tippe für Bibliothek",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                if (contact.hasPhoto) {
+                    val tsText = if (photoTimestamp != null) {
+                        val ctx = androidx.compose.ui.platform.LocalContext.current
+                        java.text.DateFormat.getDateTimeInstance(
+                            java.text.DateFormat.MEDIUM, java.text.DateFormat.SHORT,
+                            ctx.resources.configuration.locales[0],
+                        ).format(java.util.Date(photoTimestamp))
+                    } else "unbekannt"
+                    Text(
+                        "Aktualisiert: $tsText",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             }
         },
             leadingContent = { ContactAvatar(contact = contact) },
