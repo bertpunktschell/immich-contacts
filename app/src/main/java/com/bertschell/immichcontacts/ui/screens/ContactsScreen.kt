@@ -4,6 +4,7 @@ import android.Manifest
 import android.content.pm.PackageManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -29,8 +30,8 @@ import com.bertschell.immichcontacts.ui.viewmodel.ContactsViewModel
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ContactsScreen(
-    onContactClick: (ContactInfo, String?, String?) -> Unit,
-    onBrowseLibrary: () -> Unit,
+    onContactWithPerson: (ContactInfo, String, String) -> Unit,
+    onContactBrowseLibrary: (ContactInfo) -> Unit,
     onSettings: () -> Unit,
     viewModel: ContactsViewModel = viewModel()
 ) {
@@ -64,9 +65,6 @@ fun ContactsScreen(
             TopAppBar(
                 title = { Text("Kontakte") },
                 actions = {
-                    IconButton(onClick = onBrowseLibrary) {
-                        Icon(Icons.Default.PhotoLibrary, contentDescription = "Bibliothek")
-                    }
                     IconButton(onClick = onSettings) {
                         Icon(Icons.Default.Settings, contentDescription = "Settings")
                     }
@@ -150,12 +148,16 @@ fun ContactsScreen(
                 verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
                 items(contacts, key = { it.id }) { contact ->
+                    val person = viewModel.getPersonForContact(contact.id)
                     ContactRow(
                         contact = contact,
-                        matchedPersonName = viewModel.getPersonForContact(contact.id)?.name,
+                        matchedPersonName = person?.name,
                         onClick = {
-                            val person = viewModel.getPersonForContact(contact.id)
-                            onContactClick(contact, person?.id, person?.name)
+                            if (person != null) {
+                                onContactWithPerson(contact, person.id, person.name)
+                            } else {
+                                onContactBrowseLibrary(contact)
+                            }
                         }
                     )
                 }
@@ -175,32 +177,29 @@ private fun ContactRow(
         supportingContent = {
             if (matchedPersonName != null) {
                 Text(
-                    "Immich: $matchedPersonName",
+                    "Immich: $matchedPersonName · Tippe für Bilder",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.primary,
                 )
             } else if (contact.hasPhoto) {
                 Text(
-                    "Profilfoto vorhanden",
+                    "Profilfoto vorhanden · Tippe für Bibliothek",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            } else {
+                Text(
+                    "Kein Foto · Tippe für Bibliothek",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
         },
         leadingContent = {
-            if (contact.hasPhoto) {
-                Box(
-                    modifier = Modifier.size(40.dp).clip(CircleShape),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Icon(Icons.Default.AccountCircle, contentDescription = null, modifier = Modifier.size(40.dp))
-                }
-            } else {
-                Icon(Icons.Default.AccountCircle, contentDescription = null, modifier = Modifier.size(40.dp))
-            }
+            Icon(Icons.Default.AccountCircle, contentDescription = null, modifier = Modifier.size(40.dp))
         },
         trailingContent = if (matchedPersonName != null) {
-            { Text("Bilder", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelSmall) }
+            { Icon(Icons.Default.PhotoLibrary, contentDescription = null, tint = MaterialTheme.colorScheme.primary) }
         } else null,
         modifier = Modifier.clickable(onClick = onClick),
     )
