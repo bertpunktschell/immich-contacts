@@ -74,8 +74,10 @@ fun ContactsScreen(
             if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
                 if (hasContactPermission && com.bertschell.immichcontacts.data.PhotoDirtyFlag.isDirty) {
                     com.bertschell.immichcontacts.data.PhotoDirtyFlag.isDirty = false
-                    viewModel.loadData(context)
-                    photoRev++
+                    // Targeted: refresh ONLY the contact whose photo changed —
+                    // the list keeps its identity/composition (snappy, no full rebuild)
+                    viewModel.refreshSingleContact(
+                        com.bertschell.immichcontacts.data.PhotoDirtyFlag.dirtyContactId, context)
                 }
             }
         }

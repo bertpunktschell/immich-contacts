@@ -96,6 +96,22 @@ class ContactsViewModel : ViewModel() {
         return state.people.find { it.id == personId }
     }
 
+    /** Targeted refresh: re-read ONE contact after its photo changed (no full list rebuild). */
+    fun refreshSingleContact(contactId: Long, context: Context) {
+        viewModelScope.launch {
+            try {
+                val refreshed = withContext(Dispatchers.IO) {
+                    ContactsRepository(context).getContact(contactId)
+                } ?: return@launch
+                val newList = state.contacts.map { if (it.id == contactId) refreshed else it }
+                state = state.copy(contacts = newList)
+            } catch (e: Exception) {
+                // Fallback: full reload on failure
+                loadData(context)
+            }
+        }
+    }
+
     fun setPersonOverride(contactId: Long, personId: String, context: Context) {
         // update state immediately
         val newMap = state.contactToPersonMap + (contactId to personId)

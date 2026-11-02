@@ -116,6 +116,39 @@ class ContactsRepository(private val context: Context) {
         return emails
     }
 
+    /** Re-read ONE contact (targeted refresh after its photo changed). */
+    fun getContact(contactId: Long): ContactInfo? {
+        val projection = arrayOf(
+            ContactsContract.Contacts._ID,
+            ContactsContract.Contacts.DISPLAY_NAME,
+            ContactsContract.Contacts.PHOTO_URI,
+            ContactsContract.Contacts.HAS_PHONE_NUMBER,
+        )
+        context.contentResolver.query(
+            ContactsContract.Contacts.CONTENT_URI,
+            projection,
+            "${ContactsContract.Contacts._ID} = ?",
+            arrayOf(contactId.toString()),
+            null
+        )?.use { cursor ->
+            if (cursor.moveToFirst()) {
+                val id = cursor.getLong(0)
+                val name = cursor.getString(1) ?: return null
+                val photoUri = cursor.getString(2)
+                return ContactInfo(
+                    id = id,
+                    displayName = name,
+                    hasPhoto = photoUri != null,
+                    photoUri = photoUri,
+                    phoneNumbers = getPhoneNumbers(id),
+                    emails = getEmails(id),
+                    accountTypes = getAccountTypes(id),
+                )
+            }
+        }
+        return null
+    }
+
     fun setContactPhoto(contactId: Long, bitmap: Bitmap): Boolean {
         val stream = ByteArrayOutputStream()
         bitmap.compress(Bitmap.CompressFormat.JPEG, 90, stream)
