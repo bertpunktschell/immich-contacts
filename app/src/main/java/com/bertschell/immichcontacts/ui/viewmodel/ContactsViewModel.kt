@@ -11,6 +11,7 @@ import com.bertschell.immichcontacts.data.ContactsRepository
 import com.bertschell.immichcontacts.data.ImmichApi
 import com.bertschell.immichcontacts.data.SettingsRepository
 import com.bertschell.immichcontacts.data.model.ImmichPerson
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 data class ContactsState(
@@ -32,16 +33,8 @@ class ContactsViewModel : ViewModel() {
         viewModelScope.launch {
             try {
                 val settings = SettingsRepository(context)
-                val url = settings.serverUrl.let { flow ->
-                    var u = ""
-                    flow.collect { u = it; return@collect }
-                    u
-                }
-                val apiKey = settings.apiKey.let { flow ->
-                    var k = ""
-                    flow.collect { k = it; return@collect }
-                    k
-                }
+                val url = settings.serverUrl.first()
+                val apiKey = ***.first()
                 val api = ImmichApi(url, apiKey)
                 val contactsRepo = ContactsRepository(context)
 
