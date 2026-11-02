@@ -232,12 +232,24 @@ private fun ContactAvatar(contact: ContactInfo, sizeDp: Int = 40) {
         if (bitmap != null) return@LaunchedEffect
         val bmp = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
             try {
-                if (contact.photoUri != null) {
-                    android.provider.ContactsContract.Contacts.openContactPhotoInputStream(
-                        contextForAvatars.contentResolver, android.net.Uri.parse(contact.photoUri), true
-                    )?.use { android.graphics.BitmapFactory.decodeStream(it) }
-                } else null
-            } catch (e: Exception) { null }
+                when {
+                    contact.photoUri != null ->
+                        contextForAvatars.contentResolver.openInputStream(
+                            android.net.Uri.parse(contact.photoUri)
+                        )?.use { android.graphics.BitmapFactory.decodeStream(it) }
+                    else ->
+                        // Fallback: full-res photo via contact id
+                        android.provider.ContactsContract.Contacts.openContactPhotoInputStream(
+                            contextForAvatars.contentResolver,
+                            android.content.ContentUris.withAppendedId(
+                                android.provider.ContactsContract.Contacts.CONTENT_URI, contact.id),
+                            true
+                        )?.use { android.graphics.BitmapFactory.decodeStream(it) }
+                }
+            } catch (e: Exception) {
+                android.util.Log.w("ContactAvatar", "photo load failed for ${'$'}{contact.id}", e)
+                null
+            }
         }
         bitmap = bmp
     }
