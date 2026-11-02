@@ -61,6 +61,9 @@ fun CropScreen(
         } else if (result.resultCode == UCrop.RESULT_ERROR) {
             val error = UCrop.getError(result.data ?: Intent())
             viewModel.setError(error?.message ?: "Crop fehlgeschlagen")
+        } else {
+            // User cancelled (X / system back) — return to the image overview
+            onBack()
         }
     }
 
@@ -79,7 +82,19 @@ fun CropScreen(
                     setHideBottomControls(false)
                     setFreeStyleCropEnabled(false)  // circle mask + free rectangle contradict
                     setCircleDimmedLayer(true)  // show final circular look like contact photo UIs
-                    setDimmedLayerColor(android.graphics.Color.argb(140, 0, 0, 0))
+                    // Dark-mode friendly colors (follows system night mode)
+                    val dark = (context.resources.configuration.uiMode and
+                        android.content.res.Configuration.UI_MODE_NIGHT_MASK) == android.content.res.Configuration.UI_MODE_NIGHT_YES
+                    if (dark) {
+                        setRootViewBackgroundColor(android.graphics.Color.parseColor("#1C1B1F"))
+                        setToolbarColor(android.graphics.Color.parseColor("#1C1B1F"))
+                        setStatusBarColor(android.graphics.Color.parseColor("#1C1B1F"))
+                        setToolbarWidgetColor(android.graphics.Color.WHITE)
+                        setActiveControlsWidgetColor(android.graphics.Color.parseColor("#D0BCFF"))
+                        setDimmedLayerColor(android.graphics.Color.argb(150, 0, 0, 0))
+                    } else {
+                        setDimmedLayerColor(android.graphics.Color.argb(140, 0, 0, 0))
+                    }
                     setToolbarTitle("Zuschneiden für $contactName")
                 })
                 .getIntent(context)
