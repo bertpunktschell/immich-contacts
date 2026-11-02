@@ -22,6 +22,7 @@ data class ContactsState(
     val people: List<ImmichPerson> = emptyList(),
     val matchedPersonIds: Map<String, List<ContactInfo>> = emptyMap(),
     val contactToPersonMap: Map<Long, String> = emptyMap(),
+    val ambiguous: Map<Long, List<ImmichPerson>> = emptyMap(), // contact -> candidates needing user decision
     val error: String? = null,
     val searchQuery: String = "",
     val showOnlyWithImmich: Boolean = true,
@@ -43,27 +44,41 @@ class ContactsViewModel : ViewModel() {
 
                 // Contacts query blocks heavily — keep it OFF the main thread
                 // so the loading spinner ticks fluently.
-                val (contacts, people, matches) = withContext(Dispatchers.IO) {
+                val overrideRepo = com.bertschell.immichcontacts.data.PersonOverrideRepository(context)
+                val overrides = overrideRepo.overrides.first()
+
+                val (contacts, people, matchResult) = withContext(Dispatchers.IO) {
                     val c = contactsRepo.getAllContacts()
                     val pr = api.getPeople()
                     val ppl = pr.people.filter { !it.isHidden }
-                    val m = contactsRepo.matchContactsToPeople(c, ppl)
-                    Triple(c, ppl, m)
+                    Triple(c, ppl, contactsRepo.matchConservative(c, ppl))
                 }
 
+                // Overrides always win, then auto matches.
+                // An override also REMOVES the contact from a wrong auto match.
+                val autoMatches = matchResult.auto.toMutableMap()
                 val contactToPerson = mutableMapOf<Long, String>()
-                for ((personId, matchedContacts) in matches) {
+                for ((contactId, personId) in overrides) {
+                    contactToPerson[contactId] = personId
+                }
+                for ((personId, matchedContacts) in autoMatches) {
                     for (contact in matchedContacts) {
-                        contactToPerson[contact.id] = personId
+                        if (contact.id !in contactToPerson) contactToPerson[contact.id] = personId
                     }
                 }
+
+                // Ambiguous candidates only for contacts still unmapped
+                val amb = matchResult.ambiguous
+                    .filter { (contact, _) -> contact.id !in contactToPerson }
+                    .associate { (contact, candidates) -> contact.id to candidates }
 
                 state = state.copy(
                     isLoading = false,
                     contacts = contacts,
                     people = people,
-                    matchedPersonIds = matches,
+                    matchedPersonIds = autoMatches,
                     contactToPersonMap = contactToPerson,
+                    ambiguous = amb,
                 )
                 api.close()
             } catch (e: Exception) {
@@ -79,6 +94,22 @@ class ContactsViewModel : ViewModel() {
     fun getPersonForContact(contactId: Long): ImmichPerson? {
         val personId = state.contactToPersonMap[contactId] ?: return null
         return state.people.find { it.id == personId }
+    }
+
+    fun setPersonOverride(contactId: Long, personId: String, context: Context) {
+        // update state immediately
+        val newMap = state.contactToPersonMap + (contactId to personId)
+        state = state.copy(contactToPersonMap = newMap, ambiguous = state.ambiguous - contactId)
+        viewModelScope.launch {
+            com.bertschell.immichcontacts.data.PersonOverrideRepository(context).setOverride(contactId, personId)
+        }
+    }
+
+    fun clearPersonOverride(contactId: Long, context: Context) {
+        state = state.copy(contactToPersonMap = state.contactToPersonMap - contactId)
+        viewModelScope.launch {
+            com.bertschell.immichcontacts.data.PersonOverrideRepository(context).clearOverride(contactId)
+        }
     }
 
     fun onFilterChange(showOnlyWithImmich: Boolean) {

@@ -217,24 +217,50 @@ class ContactsRepository(private val context: Context) {
         people: List<com.bertschell.immichcontacts.data.model.ImmichPerson>
     ): Map<String, List<ContactInfo>> {
         val result = mutableMapOf<String, MutableList<ContactInfo>>()
-        val peopleByName = people.filter { it.name.isNotBlank() }
-            .associateBy { it.name.lowercase().trim() }
+        val namedPeople = people.filter { it.name.isNotBlank() }
+        val peopleByName = namedPeople.associateBy { it.name.lowercase().trim() }
 
         for (contact in contacts) {
             val contactName = contact.displayName.lowercase().trim()
-            // Exact name match
+            // Exact full-name match — the only automatic fallbacks we trust
             peopleByName[contactName]?.let { person ->
                 result.getOrPut(person.id) { mutableListOf() }.add(contact)
             }
-            // Also try first name match
-            val firstName = contactName.substringBefore(" ")
-            for (person in people.filter { it.name.isNotBlank() }) {
-                val personFirstName = person.name.lowercase().trim().substringBefore(" ")
-                if (firstName.isNotEmpty() && firstName == personFirstName && person.id !in result) {
-                    result.getOrPut(person.id) { mutableListOf() }.add(contact)
-                }
-            }
         }
         return result
+    }
+
+    /**
+     * Conservative auto-matching plus ambiguity detection.
+     * Returns autoMatches (unique unambiguous matches only) and ambiguous entries
+     * (contact → list of candidate people) that need a user decision.
+     */
+    data class MatchResult(
+        val auto: Map<String, List<ContactInfo>>,
+        val ambiguous: List<Pair<ContactInfo, List<com.bertschell.immichcontacts.data.model.ImmichPerson>>>,
+    )
+
+    fun matchConservative(
+        contacts: List<ContactInfo>,
+        people: List<com.bertschell.immichcontacts.data.model.ImmichPerson>,
+    ): MatchResult {
+        val namedPeople = people.filter { it.name.isNotBlank() }
+        val auto = matchContactsToPeople(contacts, namedPeople)
+        val matchedContactIds = auto.values.flatten().map { it.id }.toSet()
+
+        // Ambiguity candidates: same FIRST name (>=2 distinct people sharing it),
+        // or exact-name collisions already handled — plus unique-first-name OK.
+        val byFirstName = namedPeople.groupBy { it.name.lowercase().trim().substringBefore(" ") }
+        val ambiguous = mutableListOf<Pair<ContactInfo, List<com.bertschell.immichcontacts.data.model.ImmichPerson>>>()
+        for (contact in contacts) {
+            if (contact.id in matchedContactIds) continue
+            val first = contact.displayName.lowercase().trim().substringBefore(" ")
+            if (first.isEmpty()) continue
+            val candidates = byFirstName[first].orEmpty()
+            if (candidates.size >= 2) {
+                ambiguous.add(contact to candidates)
+            }
+        }
+        return MatchResult(auto, ambiguous)
     }
 }

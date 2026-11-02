@@ -5,6 +5,7 @@ import android.content.pm.PackageManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -80,6 +81,45 @@ fun ContactsScreen(
         }
         lifecycleOwner.lifecycle.addObserver(obs)
         onDispose { lifecycleOwner.lifecycle.removeObserver(obs) }
+    }
+
+    var pendingOverrideContact by remember { mutableStateOf<com.bertschell.immichcontacts.data.ContactInfo?>(null) }
+    var overrideDialogCandidates by remember { mutableStateOf<List<com.bertschell.immichcontacts.data.model.ImmichPerson>>(emptyList()) }
+
+    pendingOverrideContact?.let { contact ->
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { pendingOverrideContact = null },
+            title = { Text("Immich-Zuordnung") },
+            text = {
+                Column {
+                    Text("Wähle die Immich-Person für \"${contact.displayName}\":")
+                    Spacer(Modifier.height(8.dp))
+                    // nur Kandidaten mit Fotos in Immich zuerst, sonst alle — hier: alle, scrollbar
+                    androidx.compose.foundation.lazy.rememberLazyListState().let { _ ->
+                        androidx.compose.foundation.lazy.LazyColumn(
+                            modifier = Modifier.height(280.dp),
+                            verticalArrangement = Arrangement.spacedBy(2.dp),
+                        ) {
+                            items(overrideDialogCandidates, key = { it.id }) { candidate ->
+                                TextButton(onClick = {
+                                    viewModel.setPersonOverride(contact.id, candidate.id, context)
+                                    pendingOverrideContact = null
+                                }) {
+                                    Text(candidate.name, color = MaterialTheme.colorScheme.onSurface)
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {},
+            dismissButton = {
+                androidx.compose.material3.TextButton(onClick = {
+                    viewModel.clearPersonOverride(contact.id, context)
+                    pendingOverrideContact = null
+                }) { Text("Verknüpfung aufheben") }
+            },
+        )
     }
 
     Scaffold(
@@ -192,12 +232,20 @@ fun ContactsScreen(
                         contact = contact,
                         matchedPersonName = person?.name,
                         onClick = {
-                            if (person != null) {
+                            val ambiguousCandidates = state.ambiguous[contact.id]
+                            if (ambiguousCandidates != null) {
+                                pendingOverrideContact = contact
+                                overrideDialogCandidates = ambiguousCandidates
+                            } else if (person != null) {
                                 onContactWithPerson(contact, person.id, person.name)
                             } else {
                                 onContactBrowseLibrary(contact)
                             }
-                        }
+                        },
+                        onLongClick = {
+                            pendingOverrideContact = contact
+                            overrideDialogCandidates = state.people.filter { it.name.isNotBlank() }
+                        },
                     )
                 }
             }
@@ -205,12 +253,17 @@ fun ContactsScreen(
     }
 }
 
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
 private fun ContactRow(
     contact: ContactInfo,
     matchedPersonName: String?,
     onClick: () -> Unit,
+    onLongClick: () -> Unit = {},
 ) {
+    androidx.compose.foundation.layout.Box(
+        modifier = Modifier.fillMaxWidth().combinedClickable(onClick = onClick, onLongClick = onLongClick),
+    ) {
     ListItem(
         headlineContent = { Text(contact.displayName, fontWeight = FontWeight.Medium) },
         supportingContent = {
@@ -234,12 +287,12 @@ private fun ContactRow(
                 )
             }
         },
-        leadingContent = { ContactAvatar(contact = contact) },
-        trailingContent = if (matchedPersonName != null) {
-            { Icon(Icons.Default.PhotoLibrary, contentDescription = null, tint = MaterialTheme.colorScheme.primary) }
-        } else null,
-        modifier = Modifier.clickable(onClick = onClick),
-    )
+            leadingContent = { ContactAvatar(contact = contact) },
+            trailingContent = if (matchedPersonName != null) {
+                { Icon(Icons.Default.PhotoLibrary, contentDescription = null, tint = MaterialTheme.colorScheme.primary) }
+            } else null,
+        )
+    }
     HorizontalDivider()
 }
 
