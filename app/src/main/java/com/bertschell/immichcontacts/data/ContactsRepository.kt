@@ -110,61 +110,32 @@ class ContactsRepository(private val context: Context) {
 
     fun setContactPhotoBytes(contactId: Long, photoBytes: ByteArray): Boolean {
         return try {
-            // 1) Downscale to a legacy thumbnail blob and write it to the raw
-            //    contact — this always works and is what many apps fall back to.
+            // Find the raw contact ID for this contact
             val rawContactId = getRawContactId(contactId) ?: run {
                 Log.e("ContactsRepository", "No raw contact found for contact $contactId")
                 return false
             }
-            val thumb = downscale(photoBytes, 256)
-            if (rawContactId >= 0) {
-                // replace existing photo rows first
-                context.contentResolver.delete(
-                    ContactsContract.Data.CONTENT_URI,
-                    "${ContactsContract.Data.RAW_CONTACT_ID} = ? AND ${ContactsContract.Data.MIMETYPE} = ?",
-                    arrayOf(rawContactId.toString(), ContactsContract.CommonDataKinds.Photo.CONTENT_ITEM_TYPE)
-                )
-                val op = ContentProviderOperation.newInsert(ContactsContract.Data.CONTENT_URI)
-                    .withValue(ContactsContract.Data.RAW_CONTACT_ID, rawContactId)
-                    .withValue(ContactsContract.Data.MIMETYPE, ContactsContract.CommonDataKinds.Photo.CONTENT_ITEM_TYPE)
-                    .withValue(ContactsContract.CommonDataKinds.Photo.PHOTO, thumb)
-                    .build()
-                context.contentResolver.applyBatch(ContactsContract.AUTHORITY, arrayListOf(op))
-            }
 
-            // 2) Best-effort full-resolution display photo via openOutputStream
-            //    (supported on most Android versions; harmless if not)
-            try {
-                val contactUri = android.content.ContentUris.withAppendedId(
-                    ContactsContract.Contacts.CONTENT_URI, contactId
-                )
-                context.contentResolver.openOutputStream(contactUri)?.use { out ->
-                    out.write(photoBytes)
-                }
-                Log.d("ContactsRepository", "Full-res display photo written for $contactId")
-            } catch (e: Exception) {
-                Log.w("ContactsRepository", "Full-res write not supported, thumbnail only", e)
-            }
+            // Delete existing photo if any
+            context.contentResolver.delete(
+                ContactsContract.Data.CONTENT_URI,
+                "${ContactsContract.Data.RAW_CONTACT_ID} = ? AND ${ContactsContract.Data.MIMETYPE} = ?",
+                arrayOf(rawContactId.toString(), ContactsContract.CommonDataKinds.Photo.CONTENT_ITEM_TYPE)
+            )
 
-            Log.d("ContactsRepository", "Photo set for contact $contactId (thumb=${thumb.size}b, full=${photoBytes.size}b)")
-            true
+            // Insert new photo
+            val op = ContentProviderOperation.newInsert(ContactsContract.Data.CONTENT_URI)
+                .withValue(ContactsContract.Data.RAW_CONTACT_ID, rawContactId)
+                .withValue(ContactsContract.Data.MIMETYPE, ContactsContract.CommonDataKinds.Photo.CONTENT_ITEM_TYPE)
+                .withValue(ContactsContract.CommonDataKinds.Photo.PHOTO, photoBytes)
+                .build()
+
+            val results = context.contentResolver.applyBatch(ContactsContract.AUTHORITY, arrayListOf(op))
+            results.isNotEmpty()
         } catch (e: Exception) {
             Log.e("ContactsRepository", "Failed to set contact photo", e)
             false
         }
-    }
-
-    /** JPEG-downscale helper for the legacy Photo.PHOTO blob (~96px era limit, 256 is safe). */
-    private fun downscale(bytes: ByteArray, maxDim: Int): ByteArray {
-        val bmp = BitmapFactory.decodeByteArray(bytes, 0, bytes.size) ?: return bytes
-        val scale = minOf(1f, maxDim.toFloat() / maxOf(bmp.width, bmp.height))
-        val small = Bitmap.createScaledBitmap(
-            bmp, (bmp.width * scale).toInt().coerceAtLeast(1),
-            (bmp.height * scale).toInt().coerceAtLeast(1), true
-        )
-        val out = ByteArrayOutputStream()
-        small.compress(Bitmap.CompressFormat.JPEG, 85, out)
-        return out.toByteArray()
     }
 
     private fun getRawContactId(contactId: Long): Long? {
