@@ -147,7 +147,14 @@ class ImmichApi(private val baseUrl: String, inApiKey: String) {
     }
 
     suspend fun getAssetThumbnail(assetId: String): ByteArray {
-        return client.get(apiPath("/assets/$assetId/thumbnail")).bodyAsBytes()
+        val response = client.get(apiPath("/assets/$assetId/thumbnail"))
+        Log.d(TAG, "thumbnail($assetId) status=${response.status} ct=${response.contentType()}")
+        if (!response.status.isSuccess()) {
+            val err = response.bodyAsText().take(300)
+            Log.w(TAG, "thumbnail failed: $err")
+            throw IllegalStateException("Thumbnail HTTP ${response.status}: $err")
+        }
+        return response.bodyAsBytes()
     }
 
     suspend fun getAssetOriginal(assetId: String): ByteArray {

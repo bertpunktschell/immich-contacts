@@ -109,16 +109,20 @@ fun PersonAssetsScreen(
                 verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
                 items(state.assets, key = { it.id }) { asset ->
-                    AsyncImage(
-                        model = ImmichImageLoader.thumbnailRequest(context, serverUrl, apiKey, asset.id),
-                        contentDescription = asset.originalFileName,
-                        contentScale = ContentScale.Crop,
-                        error = painterResource(android.R.drawable.ic_menu_report_image),
+                    Box(
                         modifier = Modifier
                             .aspectRatio(1f)
                             .fillMaxWidth()
                             .clickable { if (asset.id.isNotBlank()) onAssetSelected(asset.id) },
-                    )
+                    ) {
+                        com.bertschell.immichcontacts.ui.ThumbnailBox(
+                            serverUrl = serverUrl,
+                            apiKey = apiKey,
+                            assetId = asset.id,
+                            contentDescription = asset.originalFileName,
+                            modifier = Modifier.fillMaxSize(),
+                        )
+                    }
                 }
             }
         }
