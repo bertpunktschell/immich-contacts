@@ -11,8 +11,10 @@ import com.bertschell.immichcontacts.data.ContactsRepository
 import com.bertschell.immichcontacts.data.ImmichApi
 import com.bertschell.immichcontacts.data.SettingsRepository
 import com.bertschell.immichcontacts.data.model.ImmichPerson
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 data class ContactsState(
     val isLoading: Boolean = false,
@@ -22,6 +24,7 @@ data class ContactsState(
     val contactToPersonMap: Map<Long, String> = emptyMap(),
     val error: String? = null,
     val searchQuery: String = "",
+    val showOnlyWithImmich: Boolean = false,
 )
 
 class ContactsViewModel : ViewModel() {
@@ -38,10 +41,15 @@ class ContactsViewModel : ViewModel() {
                 val api = ImmichApi(url, k)
                 val contactsRepo = ContactsRepository(context)
 
-                val contacts = contactsRepo.getAllContacts()
-                val peopleResponse = api.getPeople()
-                val people = peopleResponse.people.filter { !it.isHidden }
-                val matches = contactsRepo.matchContactsToPeople(contacts, people)
+                // Contacts query blocks heavily — keep it OFF the main thread
+                // so the loading spinner ticks fluently.
+                val (contacts, people, matches) = withContext(Dispatchers.IO) {
+                    val c = contactsRepo.getAllContacts()
+                    val pr = api.getPeople()
+                    val ppl = pr.people.filter { !it.isHidden }
+                    val m = contactsRepo.matchContactsToPeople(c, ppl)
+                    Triple(c, ppl, m)
+                }
 
                 val contactToPerson = mutableMapOf<Long, String>()
                 for ((personId, matchedContacts) in matches) {
@@ -73,7 +81,19 @@ class ContactsViewModel : ViewModel() {
         return state.people.find { it.id == personId }
     }
 
+    fun onFilterChange(showOnlyWithImmich: Boolean) {
+        state = state.copy(showOnlyWithImmich = showOnlyWithImmich)
+    }
+
     val filteredContacts: List<ContactInfo>
-        get() = if (state.searchQuery.isBlank()) state.contacts
-                else state.contacts.filter { it.displayName.contains(state.searchQuery, ignoreCase = true) }
+        get() {
+            var list = state.contacts
+            if (state.showOnlyWithImmich) {
+                list = list.filter { state.contactToPersonMap.containsKey(it.id) }
+            }
+            if (!state.searchQuery.isBlank()) {
+                list = list.filter { it.displayName.contains(state.searchQuery, ignoreCase = true) }
+            }
+            return list
+        }
 }

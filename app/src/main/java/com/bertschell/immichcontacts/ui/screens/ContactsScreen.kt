@@ -115,6 +115,23 @@ fun ContactsScreen(
                 modifier = Modifier.fillMaxWidth().padding(16.dp, 8.dp),
             )
 
+            // Filter chips: Immich-Bilder vorhanden / alle anzeigen
+            Row(
+                modifier = Modifier.padding(horizontal = 16.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                FilterChip(
+                    selected = state.showOnlyWithImmich,
+                    onClick = { viewModel.onFilterChange(true) },
+                    label = { Text("Mit Immich-Bild") },
+                )
+                FilterChip(
+                    selected = !state.showOnlyWithImmich,
+                    onClick = { viewModel.onFilterChange(false) },
+                    label = { Text("Alle anzeigen") },
+                )
+            }
+
             if (state.isLoading) {
                 Box(
                     modifier = Modifier.fillMaxSize(),
