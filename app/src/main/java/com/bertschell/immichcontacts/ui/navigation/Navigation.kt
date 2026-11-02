@@ -23,12 +23,14 @@ object Routes {
     const val CROP = "crop/{assetId}/{contactId}/{contactName}"
     const val SETTINGS = "settings"
 
+    private fun enc(raw: String) = android.net.Uri.encode(raw)
+
     fun personAssets(personId: String, personName: String, contactId: Long, contactName: String) =
-        "person_assets/$personId/$personName/$contactId/$contactName"
+        "person_assets/${enc(personId)}/${enc(personName)}/$contactId/${enc(contactName)}"
     fun library(contactId: Long, contactName: String) =
-        "library/$contactId/$contactName"
+        "library/$contactId/${enc(contactName)}"
     fun crop(assetId: String, contactId: Long, contactName: String) =
-        "crop/$assetId/$contactId/$contactName"
+        "crop/${enc(assetId)}/$contactId/${enc(contactName)}"
 }
 
 @Composable
