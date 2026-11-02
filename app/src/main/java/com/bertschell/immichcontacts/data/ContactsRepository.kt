@@ -128,7 +128,7 @@ class ContactsRepository(private val context: Context) {
                 .withValue(ContactsContract.CommonDataKinds.Photo.PHOTO, photoBytes)
                 .build()
 
-            val results = context.contentResolver.applyBatch(ContactsContract.AUTHORITY, arrayOf(op))
+            val results = context.contentResolver.applyBatch(ContactsContract.AUTHORITY, arrayListOf(op))
             results.isNotEmpty()
         } catch (e: Exception) {
             Log.e("ContactsRepository", "Failed to set contact photo", e)

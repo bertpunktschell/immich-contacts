@@ -34,8 +34,8 @@ class ContactsViewModel : ViewModel() {
             try {
                 val settings = SettingsRepository(context)
                 val url = settings.serverUrl.first()
-                val apiKey = ***.first()
-                val api = ImmichApi(url, apiKey)
+                val k = settings.apiKey.first()
+                val api = ImmichApi(url, k)
                 val contactsRepo = ContactsRepository(context)
 
                 val contacts = contactsRepo.getAllContacts()
@@ -43,7 +43,6 @@ class ContactsViewModel : ViewModel() {
                 val people = peopleResponse.people.filter { !it.isHidden }
                 val matches = contactsRepo.matchContactsToPeople(contacts, people)
 
-                // Build reverse map: contactId -> personId
                 val contactToPerson = mutableMapOf<Long, String>()
                 for ((personId, matchedContacts) in matches) {
                     for (contact in matchedContacts) {

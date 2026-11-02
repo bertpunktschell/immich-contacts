@@ -29,14 +29,14 @@ class SettingsViewModel : ViewModel() {
             try {
                 val repo = SettingsRepository(context)
                 val url = repo.serverUrl.first()
-                val apiKey = repo.apiKey.first()
-                val api = ImmichApi(url, apiKey)
+                val k = repo.apiKey.first()
+                val api = ImmichApi(url, k)
                 val user = api.testConnection()
                 api.close()
                 state = state.copy(
                     isLoading = false,
                     serverUrl = url,
-                    apiKeyPreview = "${apiKey.take(6)}••••••••${apiKey.takeLast(4)}",
+                    apiKeyPreview = k.take(6) + "--------" + k.takeLast(4),
                     userName = user.name,
                 )
             } catch (e: Exception) {

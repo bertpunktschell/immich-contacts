@@ -38,19 +38,28 @@ class SetupViewModel : ViewModel() {
         state = state.copy(isLoading = true, error = null)
         viewModelScope.launch {
             try {
+                val url = state.url.trim().trimEnd('/')
+                val key = state.apiKey.trim()
+                if (url.isBlank() || state.apiKey.isBlank()) {
+                    state = state.copy(isLoading = false, error = "URL und API Key duerfen nicht leer sein")
+                    return@launch
+                }
                 val repo = SettingsRepository(context)
-                val url = state.url.trimEnd('/')
-                val api = ImmichApi(url, state.apiKey)
+                val api = ImmichApi(url, key)
                 val user = api.testConnection()
                 api.close()
-                repo.saveConnection(url, state.apiKey)
+                repo.saveConnection(url, key)
                 state = state.copy(isLoading = false)
                 onSuccess()
             } catch (e: Exception) {
-                state = state.copy(
-                    isLoading = false,
-                    error = "Verbindung fehlgeschlagen: ${e.message ?: "Unbekannter Fehler"}"
-                )
+                val msg = when {
+                    e.message?.contains("Unknown host") == true -> "Server nicht erreichbar: URL korrekt?"
+                    e.message?.contains("timeout") == true -> "Timeout: Server zu langsam oder nicht erreichbar"
+                    e.message?.contains("401") == true || e.message?.contains("403") == true -> "API Key unguelig"
+                    e.message?.contains("SSL") == true -> "SSL/TLS Fehler: Zertifikat Problem?"
+                    else -> "Fehler: " + (e.message ?: e::class.simpleName ?: "Unbekannt")
+                }
+                state = state.copy(isLoading = false, error = msg)
             }
         }
     }

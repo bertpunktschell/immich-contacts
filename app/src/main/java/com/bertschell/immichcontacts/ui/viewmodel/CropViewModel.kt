@@ -37,15 +37,15 @@ class CropViewModel : ViewModel() {
             try {
                 val settings = SettingsRepository(context)
                 val url = settings.serverUrl.first()
-                val apiKey = settings.apiKey.first()
-                val api = ImmichApi(url, apiKey)
+                val k = settings.apiKey.first()
+                val api = ImmichApi(url, k)
 
                 val imageBytes = withContext(Dispatchers.IO) {
                     api.getAssetOriginal(assetId)
                 }
                 api.close()
 
-                val tempFile = File(context.cacheDir, "immich_${assetId}.jpg")
+                val tempFile = File(context.cacheDir, "immich_" + assetId + ".jpg")
                 withContext(Dispatchers.IO) {
                     tempFile.writeBytes(imageBytes)
                 }
@@ -56,7 +56,7 @@ class CropViewModel : ViewModel() {
                     readyForCrop = true,
                 )
             } catch (e: Exception) {
-                state = state.copy(isLoading = false, error = "Download fehlgeschlagen: ${e.message}")
+                state = state.copy(isLoading = false, error = "Download fehlgeschlagen: " + (e.message ?: ""))
             }
         }
     }
@@ -87,11 +87,10 @@ class CropViewModel : ViewModel() {
                     state = state.copy(isApplying = false, error = "Konnte Kontaktfoto nicht speichern")
                 }
 
-                // Cleanup temp files
                 state.tempInputPath?.let { File(it).delete() }
-                File(context.cacheDir, "cropped_${contactId}.jpg").delete()
+                File(context.cacheDir, "cropped_" + contactId + ".jpg").delete()
             } catch (e: Exception) {
-                state = state.copy(isApplying = false, error = "Fehler: ${e.message}")
+                state = state.copy(isApplying = false, error = "Fehler: " + (e.message ?: ""))
             }
         }
     }

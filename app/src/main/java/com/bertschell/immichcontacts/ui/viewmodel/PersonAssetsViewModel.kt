@@ -28,8 +28,8 @@ class PersonAssetsViewModel : ViewModel() {
             try {
                 val settings = SettingsRepository(context)
                 val url = settings.serverUrl.first()
-                val apiKey = settings.apiKey.first()
-                val api = ImmichApi(url, apiKey)
+                val k = settings.apiKey.first()
+                val api = ImmichApi(url, k)
                 val response = api.getAssetsForPerson(personId, size = 100)
                 state = state.copy(isLoading = false, assets = response.assets.items)
                 api.close()

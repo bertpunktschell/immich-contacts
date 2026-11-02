@@ -31,8 +31,8 @@ class LibraryViewModel : ViewModel() {
             try {
                 val settings = SettingsRepository(context)
                 val url = settings.serverUrl.first()
-                val apiKey = settings.apiKey.first()
-                val api = ImmichApi(url, apiKey)
+                val k = settings.apiKey.first()
+                val api = ImmichApi(url, k)
                 val buckets = api.getTimelineBuckets()
                 state = state.copy(isLoading = false, buckets = buckets)
                 api.close()
@@ -48,8 +48,8 @@ class LibraryViewModel : ViewModel() {
             try {
                 val settings = SettingsRepository(context)
                 val url = settings.serverUrl.first()
-                val apiKey = settings.apiKey.first()
-                val api = ImmichApi(url, apiKey)
+                val k = settings.apiKey.first()
+                val api = ImmichApi(url, k)
                 val assets = api.getTimelineBucket(bucket)
                 state = state.copy(isLoading = false, currentBucketAssets = assets)
                 api.close()

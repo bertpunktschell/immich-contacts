@@ -10,6 +10,10 @@ import io.ktor.client.statement.*
 import io.ktor.http.*
 import io.ktor.serialization.kotlinx.json.*
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
 import com.bertschell.immichcontacts.data.model.*
 
 class ImmichApi(private val baseUrl: String, private val apiKey: String) {
@@ -21,7 +25,6 @@ class ImmichApi(private val baseUrl: String, private val apiKey: String) {
                 encodeDefaults = true
             })
         }
-        install(Logging)
         install(DefaultRequest) {
             header("x-api-key", apiKey)
             contentType(ContentType.Application.Json)
@@ -51,23 +54,23 @@ class ImmichApi(private val baseUrl: String, private val apiKey: String) {
 
     suspend fun getAssetsForPerson(personId: String, page: Int = 1, size: Int = 50): ImmichSearchResponse {
         return client.post(apiPath("/search/metadata")) {
-            setBody(mapOf(
-                "personId" to personId,
-                "type" to "IMAGE",
-                "page" to page,
-                "size" to size
-            ))
+            setBody(buildJsonObject {
+                put("personId", personId)
+                put("type", "IMAGE")
+                put("page", page)
+                put("size", size)
+            })
         }.body()
     }
 
     suspend fun searchAssets(query: String, page: Int = 1, size: Int = 50): ImmichSearchResponse {
         return client.post(apiPath("/search/metadata")) {
-            setBody(mapOf(
-                "originalFileName" to query,
-                "type" to "IMAGE",
-                "page" to page,
-                "size" to size
-            ))
+            setBody(buildJsonObject {
+                put("originalFileName", query)
+                put("type", "IMAGE")
+                put("page", page)
+                put("size", size)
+            })
         }.body()
     }
 
