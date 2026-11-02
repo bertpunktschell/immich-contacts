@@ -26,7 +26,7 @@ class ImmichApi(private val baseUrl: String, inApiKey: String) {
 
     private val json = Json { ignoreUnknownKeys = true; isLenient = true }
 
-    private val apiKey = inApiKey
+    private val apiKey = inApiKey.trim()
     private val TAG = "ImmichApi"
 
     private val client = HttpClient(OkHttp) {
