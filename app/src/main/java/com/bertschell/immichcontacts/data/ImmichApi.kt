@@ -15,10 +15,16 @@ import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.put
 import com.bertschell.immichcontacts.data.model.*
+import com.bertschell.immichcontacts.data.model.ImmichAsset
+import io.ktor.http.isSuccess
 
 class ImmichApi(private val baseUrl: String, inApiKey: String) {
+
+    private val json = Json { ignoreUnknownKeys = true; isLenient = true }
 
     private val apiKey = inApiKey
     private val TAG = "ImmichApi"
@@ -60,40 +66,76 @@ class ImmichApi(private val baseUrl: String, inApiKey: String) {
     }
 
     suspend fun getAssetsForPerson(personId: String, page: Int = 1, size: Int = 100): ImmichSearchResponse {
-        val response = client.post(apiPath("/search/metadata")) {
-            setBody(buildJsonObject {
-                put("personIds", JsonArray(listOf(JsonPrimitive(personId))))
-                put("type", "IMAGE")
-                put("page", page)
-                put("size", size)
-            })
+        val body = buildJsonObject {
+            put("personIds", JsonArray(listOf(JsonPrimitive(personId))))
+            put("type", "IMAGE")
+            put("page", page)
+            put("size", size)
         }
+        val response = client.post(apiPath("/search/metadata")) { setBody(body) }
         Log.d(TAG, "getAssetsForPerson($personId) status=${response.status}")
-        return response.body()
+        return parseSearchResponse(response)
+    }
+
+    /** Fetch as raw string, log it, then tolerate: typed parse -> manual fallback parse. */
+    private suspend fun parseSearchResponse(response: HttpResponse): ImmichSearchResponse {
+        val raw = response.bodyAsText()
+        Log.d(TAG, "searchResponse raw (first 600): ${raw.take(600)}")
+        if (!response.status.isSuccess()) {
+            throw IllegalStateException("HTTP ${response.status}: ${raw.take(300)}")
+        }
+        return try {
+            json.decodeFromString<ImmichSearchResponse>(raw)
+        } catch (e: Exception) {
+            Log.w(TAG, "Typed parse failed (${e.message}); manual fallback", e)
+            manualParse(raw)
+        }
+    }
+
+    /** Manual parse: extract asset ids from assets.items regardless of unknown shapes. */
+    private fun manualParse(raw: String): ImmichSearchResponse = runCatching {
+        val root = json.parseToJsonElement(raw).jsonObject
+        val assetsObj = root["assets"] as? JsonObject
+        val itemsArr = (assetsObj?.get("items") ?: root["items"])?.jsonArray ?: JsonArray(emptyList())
+        val assets = itemsArr.mapNotNull { el ->
+            val obj = el as? JsonObject ?: return@mapNotNull null
+            val id = (obj["id"] as? JsonPrimitive)?.content ?: return@mapNotNull null
+            ImmichAsset(
+                id = id,
+                type = (obj["type"] as? JsonPrimitive)?.content ?: "IMAGE",
+                originalFileName = (obj["originalFileName"] as? JsonPrimitive)?.content ?: "",
+                fileCreatedAt = (obj["fileCreatedAt"] as? JsonPrimitive)?.content ?: "",
+                localDateTime = (obj["localDateTime"] as? JsonPrimitive)?.content ?: "",
+            )
+        }
+        Log.d(TAG, "manualParse: ${assets.size} assets")
+        ImmichSearchResponse(assets = ImmichSearchAssets(total = assets.size, items = assets))
+    }.getOrElse {
+        Log.e(TAG, "manualParse failed entirely", it)
+        ImmichSearchResponse()
     }
 
     suspend fun searchAssets(query: String, page: Int = 1, size: Int = 50): ImmichSearchResponse {
-        return client.post(apiPath("/search/metadata")) {
-            setBody(buildJsonObject {
-                put("originalFileName", query)
-                put("type", "IMAGE")
-                put("page", page)
-                put("size", size)
-            })
-        }.body()
+        val body = buildJsonObject {
+            put("originalFileName", query)
+            put("type", "IMAGE")
+            put("page", page)
+            put("size", size)
+        }
+        val response = client.post(apiPath("/search/metadata")) { setBody(body) }
+        return parseSearchResponse(response)
     }
 
     /** Get all images via search/metadata — reliable asset-object format */
     suspend fun getAllImages(page: Int = 1, size: Int = 100): ImmichSearchResponse {
-        val response = client.post(apiPath("/search/metadata")) {
-            setBody(buildJsonObject {
-                put("type", "IMAGE")
-                put("page", page)
-                put("size", size)
-            })
+        val body = buildJsonObject {
+            put("type", "IMAGE")
+            put("page", page)
+            put("size", size)
         }
+        val response = client.post(apiPath("/search/metadata")) { setBody(body) }
         Log.d(TAG, "getAllImages page=$page status=${response.status}")
-        return response.body()
+        return parseSearchResponse(response)
     }
 
     suspend fun getTimelineBuckets(size: String = "MONTH"): List<ImmichTimelineBucket> {

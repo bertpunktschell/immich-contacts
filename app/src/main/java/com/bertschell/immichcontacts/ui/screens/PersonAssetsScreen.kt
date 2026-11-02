@@ -17,6 +17,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
+import androidx.compose.ui.res.painterResource
 import com.bertschell.immichcontacts.data.ImmichImageLoader
 import com.bertschell.immichcontacts.data.SettingsRepository
 import com.bertschell.immichcontacts.ui.viewmodel.PersonAssetsViewModel
@@ -112,10 +113,11 @@ fun PersonAssetsScreen(
                         model = ImmichImageLoader.thumbnailRequest(context, serverUrl, apiKey, asset.id),
                         contentDescription = asset.originalFileName,
                         contentScale = ContentScale.Crop,
+                        error = painterResource(android.R.drawable.ic_menu_report_image),
                         modifier = Modifier
                             .aspectRatio(1f)
                             .fillMaxWidth()
-                            .clickable { onAssetSelected(asset.id) },
+                            .clickable { if (asset.id.isNotBlank()) onAssetSelected(asset.id) },
                     )
                 }
             }
